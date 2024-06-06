@@ -1,14 +1,22 @@
 import os.path
 import random
 import shutil
-from tkinter import Tk, Frame, BOTH, Button, Label, Entry, Radiobutton, IntVar, StringVar
+from tkinter import Tk, StringVar, Canvas
 from tkinter.filedialog import askdirectory
 from os import walk
+from tkinter.ttk import Checkbutton, Frame, Button, Label, Entry, Radiobutton, Scrollbar
+
+# todo possible update
+# Make it so that the file extensions scroll back to the top when a new folder is scanned
 
 # Global variables
 importPath = ''
 exportPath = ''
 availableFileList = []
+allAvailableFileList = []
+fileTypeList = []
+checkBoxList = []
+selectedExtensionList = []
 importScanned = False
 exportSet = False
 totalFileSize = 0
@@ -20,19 +28,35 @@ def testFunction():
     global exportSet
     global importPath
     global exportPath
+    global checkBoxList
     exportSet = True
     importPath = 'C:/Users/l.mallard/Documents/aTest'
     exportPath = 'C:/Users/l.mallard/Documents/aTestExport'
     setAvailablePathList()
 
 
+def clearCheckBoxList():
+    global checkBoxList
+
+    for checkBox in checkBoxList:
+        checkBox.pack_forget()
+
+
 def updateRandomizerVisibility():
     global importScanned
     global exportSet
+    global checkBoxList
     if importScanned and exportSet:
         copyOptionRButton1.place(x=0, y=165)
         copyOptionRButton2.place(x=120, y=165)
         CopyButton.place(x=125, y=255)
+        onlyConsiderLabel.place(x=390, y=0)
+        # Used to display the scrollbar. It also has to be activated in the "else" part below
+        # checkBoxFrameScrollBar.place(x=524, y=26, height=280)
+        tkCheckBoxCanvas.place(x=390, y=25)
+        for checkBox in checkBoxList:
+            checkBox.pack(side='top', anchor='nw')
+        tkCheckBoxCanvas.configure(scrollregion=(0, 0, 0, len(checkBoxList) * 25))
         if copyType.get() == 'number':
             fileSizeLabel.place_forget()
             fileSizeEntry.place_forget()
@@ -51,6 +75,11 @@ def updateRandomizerVisibility():
         copyOptionRButton1.place_forget()
         copyOptionRButton2.place_forget()
         CopyButton.place_forget()
+        onlyConsiderLabel.place_forget()
+        # Used to display the scrollbar. It also has to be activated in the "if" part above
+        # checkBoxFrameScrollBar.place_forget()
+        tkCheckBoxCanvas.place_forget()
+        clearCheckBoxList()
 
 
 def askForPath(pathType):
@@ -69,7 +98,7 @@ def askForPath(pathType):
         exportPath = askdirectory(title='Where to export')
         exportPathLabel['text'] = exportPath
         exportPathLabel.place(x=0, y=120)
-        if exportSet != '':
+        if exportPath != '':
             exportSet = True
             updateRandomizerVisibility()
 
@@ -79,6 +108,11 @@ def getAvailablePathNumber():
     global importScanned
     global totalFileSize
     global sizeUnitUsed
+    totalFileSize = 0
+
+    for filename in availableFileList:
+        totalFileSize += os.path.getsize(filename)
+
     convertedSize = totalFileSize
 
     if convertedSize > 1000:
@@ -93,7 +127,7 @@ def getAvailablePathNumber():
 
     scanNumberLabel['text'] = str(len(availableFileList)) + ' Files found ( ' + str(
         round(convertedSize, 2)) + ' )' + sizeUnitUsed
-    scanNumberLabel.place(x=45, y=55)
+    scanNumberLabel.place(x=80, y=54)
 
     fileSizeLabel['text'] = "How much " + sizeUnitUsed + " to copy"
 
@@ -102,21 +136,44 @@ def getAvailablePathNumber():
         updateRandomizerVisibility()
 
 
+def getFileTypeCheckBoxList():
+    global fileTypeList
+    global checkBoxList
+    global selectedExtensionList
+    clearCheckBoxList()
+    checkBoxList = []
+    selectedExtensionList = []
+    index = 0
+
+    for fileExtension in fileTypeList:
+        checkBoxList.append(Checkbutton(CheckBoxFrame, text=fileExtension,
+                                        command=lambda: updateAvailableFileListByExtension()))
+        checkBoxList[index].state(['!alternate'])
+        checkBoxList[index].state(['selected'])
+        selectedExtensionList.append(fileExtension)
+        index += 1
+
+
 def setAvailablePathList():
     global importPath
     global availableFileList
-    global totalFileSize
+    global allAvailableFileList
+    global fileTypeList
 
     availableFileList = []
-    totalFileSize = 0
+    fileTypeList = []
 
     for (dirpath, dirnames, filenames) in walk(importPath):
         for filename in filenames:
             filename = dirpath + '/' + filename
             filename = filename.replace('\\', '/')
+            dump, fileExtension = os.path.splitext(filename)
             availableFileList.append(filename)
-            totalFileSize += os.path.getsize(filename)
+            if fileExtension[1:] not in fileTypeList:
+                fileTypeList.append(fileExtension[1:])
 
+    allAvailableFileList = availableFileList
+    getFileTypeCheckBoxList()
     getAvailablePathNumber()
 
 
@@ -127,6 +184,7 @@ def getRandomizedListByNumber():
     limit = fileNumberEntry.get()
 
     fileNumberWarningLabel.place_forget()
+    fileSizeWarningLabel.place_forget()
     fileNumberEntry.delete(0, len(limit))
     fileNumberEntry.insert(0, '')
 
@@ -157,6 +215,7 @@ def getRandomizedListBySize():
     limit = fileSizeEntry.get()
 
     fileSizeWarningLabel.place_forget()
+    fileNumberWarningLabel.place_forget()
     fileSizeEntry.delete(0, len(limit))
     fileSizeEntry.insert(0, '')
 
@@ -196,6 +255,33 @@ def getRandomizedListBySize():
     return randomizedFileList
 
 
+def subStrList(stringToCheck, listToCheck):
+    for listElement in listToCheck:
+        if listElement in stringToCheck:
+            return True
+    return False
+
+
+def updateAvailableFileListByExtension():
+    global allAvailableFileList
+    global availableFileList
+    global selectedExtensionList
+    global checkBoxList
+
+    availableFileList = []
+    selectedExtensionList = []
+
+    for checkBox in checkBoxList:
+        if checkBox.instate(['selected']):
+            selectedExtensionList.append('.' + checkBox.cget("text"))
+
+    for filename in allAvailableFileList:
+        if subStrList(filename, selectedExtensionList):
+            availableFileList.append(filename)
+
+    getAvailablePathNumber()
+
+
 def copyRandomFiles():
     global exportPath
 
@@ -226,31 +312,50 @@ tkWindow = Tk()
 copyType = StringVar()
 copyType.set('number')
 
-tkWindow.geometry('390x350')
+tkWindow.geometry('585x350')
 
 # tkFrame creation
-tkFrame = Frame(tkWindow, relief='sunken')
-tkFrame.pack(fill=BOTH, expand=True, padx=20, pady=20)
+tkFrame = Frame(tkWindow)
+tkFrame.pack(fill='both', expand=True, padx=20, pady=20)
+
+# Adding canvas
+tkCheckBoxCanvas = Canvas(tkFrame, height=280, width=150, highlightbackground="black", highlightthickness=1)
+
+
+# Adding scroll sensitivity
+def on_mousewheel(event):
+    scroll = -1 if event.delta > 0 else 1
+    tkCheckBoxCanvas.yview_scroll(scroll, "units")
+
+
+tkCheckBoxCanvas.bind_all("<MouseWheel>", on_mousewheel)
+
+# Adding Scrollbar
+checkBoxFrameScrollBar = Scrollbar(tkFrame, orient='vertical', command=tkCheckBoxCanvas.yview)
+tkCheckBoxCanvas.config(yscrollcommand=checkBoxFrameScrollBar.set)
+CheckBoxFrame = Frame(tkCheckBoxCanvas)
+CheckBoxFrame.pack()
+tkCheckBoxCanvas.create_window(tkCheckBoxCanvas.winfo_rootx(), tkCheckBoxCanvas.winfo_rooty(), anchor='nw',
+                               window=CheckBoxFrame)
 
 # Adding elements
 importPathSelectButton = Button(tkFrame, text='Import from...', command=lambda: askForPath('import'))
 exportPathSelectButton = Button(tkFrame, text='Export to...', command=lambda: askForPath('export'))
 scanButton = Button(tkFrame, text='Scan', command=lambda: setAvailablePathList())
 CopyButton = Button(tkFrame, text='Start to copy', command=lambda: copyRandomFiles())
-# todo to remove
-# testButton = Button(tkFrame, text='TEST', command=lambda: testFunction())
 
 importPathLabel = Label(tkFrame, text=importPath, borderwidth=0)
 exportPathLabel = Label(tkFrame, text=exportPath, borderwidth=0)
 scanNumberLabel = Label(tkFrame, text="", borderwidth=0)
 fileNumberLabel = Label(tkFrame, text="How many files to copy", borderwidth=2)
 fileSizeLabel = Label(tkFrame, text="How much " + sizeUnitUsed + " to copy", borderwidth=2)
-copyConfirmationLabel = Label(tkFrame, text="Files copied !", borderwidth=2, fg='green')
+copyConfirmationLabel = Label(tkFrame, text="Files copied !", borderwidth=2, foreground='green')
 fileNumberWarningLabel = Label(tkFrame,
-                               text="Please enter a value between 0 and the amount of files scanned",
-                               borderwidth=0, fg='red')
-fileSizeWarningLabel = Label(tkFrame, text="Please enter a value between 0 and the size scanned", borderwidth=0,
-                             fg='red')
+                               text="Please enter a value between 0 and the amount of files available",
+                               borderwidth=0, foreground='red')
+fileSizeWarningLabel = Label(tkFrame, text="Please enter a value between 0 and the size available", borderwidth=0,
+                             foreground='red')
+onlyConsiderLabel = Label(tkFrame, text="Only consider :", borderwidth=2)
 
 copyOptionRButton1 = Radiobutton(tkFrame, text="Copy by number", variable=copyType, value='number',
                                  command=lambda: updateRandomizerVisibility())
@@ -264,8 +369,6 @@ fileSizeEntry = Entry(tkFrame)
 importPathSelectButton.place(x=0, y=0)
 exportPathSelectButton.place(x=0, y=95)
 scanButton.place(x=0, y=50)
-# todo to remove
-# testButton.place(x=0, y=0)
 
 # Running the loop
 tkWindow.mainloop()
