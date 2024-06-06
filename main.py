@@ -23,18 +23,6 @@ totalFileSize = 0
 sizeUnitUsed = 'o'
 
 
-def testFunction():
-    print('------------ Testing ------------')
-    global exportSet
-    global importPath
-    global exportPath
-    global checkBoxList
-    exportSet = True
-    importPath = 'C:/Users/l.mallard/Documents/aTest'
-    exportPath = 'C:/Users/l.mallard/Documents/aTestExport'
-    setAvailablePathList()
-
-
 def clearCheckBoxList():
     global checkBoxList
 
@@ -109,6 +97,7 @@ def getAvailablePathNumber():
     global totalFileSize
     global sizeUnitUsed
     totalFileSize = 0
+    sizeUnitUsed = 'o'
 
     for filename in availableFileList:
         totalFileSize += os.path.getsize(filename)
